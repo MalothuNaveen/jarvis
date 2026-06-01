@@ -1,0 +1,40 @@
+# ============================================================
+#  JARVIS Requirements  —  Mac M1 Pro  |  pip install -r requirements.txt
+# ============================================================
+
+# ── LLM (local via Ollama) ───────────────────────────────────
+ollama                   # Python client for Ollama
+
+# ── Speech-to-Text ───────────────────────────────────────────
+openai-whisper           # Local Whisper STT (no API key needed)
+sounddevice              # Mic capture
+numpy                    # Audio buffer handling
+scipy                    # WAV writing
+
+# ── Browser Automation ───────────────────────────────────────
+browser-use              # AI-driven browser control
+playwright               # Underlying browser engine
+# After install: playwright install chromium
+
+# ── OS Control ───────────────────────────────────────────────
+pyautogui                # Mouse, keyboard, screenshots
+pyobjc-framework-Cocoa   # macOS native AppleScript bridge (M1)
+
+# ── DevOps / File Watching ───────────────────────────────────
+watchdog                 # File system event watcher
+gitpython                # Git automation
+
+# ── Multimedia ───────────────────────────────────────────────
+Pillow                   # Image processing
+moviepy                  # Video editing
+# For local vision model:  pip install transformers torch
+
+# ── Web / Intelligence ───────────────────────────────────────
+httpx                    # Async HTTP client
+beautifulsoup4           # HTML scraping
+feedparser               # RSS/Atom news feeds
+
+# ── Async + Utilities ────────────────────────────────────────
+asyncio                  # Built-in, listed for clarity
+python-dotenv            # .env support
+rich                     # Pretty terminal output / logging

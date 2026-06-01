@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>JARVIS — Ultra HUD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#010b14;overflow-x:hidden}
+body{font-family:'Share Tech Mono',monospace;color:#00f7ff}
+.J{background:#010b14;position:relative;overflow:hidden;min-height:100vh;padding:0}
+canvas.bgc{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.J>*:not(canvas.bgc){position:relative;z-index:1}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid #00f7ff22;background:#00f7ff06;flex-wrap:wrap;gap:8px}
+.logo-txt{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:#00f7ff;letter-spacing:.35em}
+.logo-txt span{color:#ff6b00}
+.sys-status{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ss-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#00f7ffaa;letter-spacing:.1em}
+.ss-dot{width:7px;height:7px;border-radius:50%;background:#00f7ff;box-shadow:0 0 8px #00f7ff;animation:hpulse 2s infinite}
+@keyframes hpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
+.clock-hud{font-family:'Orbitron',sans-serif;font-size:15px;color:#00f7ff;letter-spacing:.25em}
+.sbar{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #00f7ff15}
+.sbar-item{padding:8px 16px;text-align:center;border-right:1px solid #00f7ff12}
+.sbar-v{font-size:20px;color:#00f7ff;font-family:'Orbitron',sans-serif;font-weight:700}
+.sbar-l{font-size:8px;color:#00f7ff55;letter-spacing:.14em;margin-top:2px}
+.main{display:grid;grid-template-columns:200px 1fr 200px;gap:0;min-height:calc(100vh - 160px)}
+.left-col,.right-col{border-right:1px solid #00f7ff18;display:flex;flex-direction:column}
+.p{border-bottom:1px solid #00f7ff12;padding:10px 14px}
+.pt{font-size:9px;color:#00f7ff55;letter-spacing:.2em;margin-bottom:8px;text-transform:uppercase}
+.center-col{display:flex;flex-direction:column;overflow:hidden}
+.hexgrid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:14px 10px 6px}
+.hex-agent{width:80px;text-align:center;cursor:pointer;transition:transform .2s}
+.hex-agent:hover{transform:scale(1.08)}
+.hex-name{font-size:8px;color:#00f7ffcc;letter-spacing:.08em;margin-top:3px}
+.waveform-wrap{flex:1;padding:8px 14px;border-top:1px solid #00f7ff12;min-height:90px}
+.log-list{height:90px;overflow:hidden;display:flex;flex-direction:column-reverse;gap:1px}
+.ll{font-size:8px;color:#00f7ffbb;letter-spacing:.04em;padding:1.5px 0;border-bottom:1px solid #00f7ff08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ll.w{color:#ff9500bb}.ll.e{color:#ff3344bb}.ll.s{color:#00ff99bb}
+.alert-ticker{font-size:9px;color:#ff6b00;letter-spacing:.1em;padding:6px 16px;background:#ff6b0008;border-top:1px solid #ff6b0022;white-space:nowrap;overflow:hidden;transition:opacity .5s}
+.cmdbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px solid #00f7ff22;background:#00f7ff05}
+.cmd-prompt{font-size:12px;color:#ff6b00;letter-spacing:.05em}
+.cmd-in{flex:1;background:transparent;border:none;border-bottom:1px solid #00f7ff44;color:#00f7ff;font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 8px;outline:none;letter-spacing:.05em}
+.cmd-in::placeholder{color:#00f7ff33}
+.cmd-in:focus{border-bottom-color:#00f7ff;box-shadow:0 2px 0 #00f7ff33}
+.exec-btn{background:#00f7ff11;border:1px solid #00f7ff55;color:#00f7ff;font-size:9px;padding:5px 14px;cursor:pointer;letter-spacing:.18em;font-family:'Share Tech Mono',monospace;transition:all .15s}
+.exec-btn:hover{background:#00f7ff25;box-shadow:0 0 12px #00f7ff44}
+.scanline{position:fixed;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#00f7ff50,transparent);pointer-events:none;z-index:100;animation:vscan 5s linear infinite}
+@keyframes vscan{0%{top:-2px;opacity:0}2%{opacity:.8}98%{opacity:.3}100%{top:100vh;opacity:0}}
+.flicker{animation:flicker 12s step-end infinite}
+@keyframes flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.8}93%{opacity:1}97%{opacity:.9}98%{opacity:1}}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar-row{display:flex;align-items:center;gap:8px}
+.bar-label{font-size:9px;color:#00f7ff88;width:38px;text-align:right;letter-spacing:.05em}
+.bar-track{flex:1;height:6px;background:#00f7ff0f;border:1px solid #00f7ff22;overflow:hidden;position:relative}
+.bar-fill{height:100%;transition:width .5s ease}
+.bar-pct{font-size:8px;color:#00f7ff77;width:28px;text-align:right}
+.world-map{position:relative;height:70px;background:#00f7ff05;border:1px solid #00f7ff15;margin-top:6px;overflow:hidden}
+.ping-dot{position:absolute;width:8px;height:8px;border-radius:50%;transform:translate(-50%,-50%)}
+.ping-ring{position:absolute;width:8px;height:8px;border-radius:50%;border:1px solid;transform:translate(-50%,-50%);animation:pingring 2s ease-out infinite}
+@keyframes pingring{0%{width:8px;height:8px;opacity:1;transform:translate(-50%,-50%)}100%{width:28px;height:28px;opacity:0;transform:translate(-50%,-50%) scale(1) translate(0,0)}}
+</style>
+</head>
+<body>
+<div class="J flicker" id="hud">
+<canvas class="bgc" id="bgc"></canvas>
+<div class="scanline"></div>
+
+<div class="topbar">
+  <div class="logo-txt">J<span>A</span>RVIS &nbsp;<span style="font-size:10px;opacity:.5;font-weight:400;letter-spacing:.15em">// LOCAL 8-AGENT AI — MAC M1 PRO — ZERO COST</span></div>
+  <div class="sys-status">
+    <div class="ss-item"><div class="ss-dot"></div>NEURAL CORE ACTIVE</div>
+    <div class="ss-item" style="color:#00ff99aa"><div class="ss-dot" style="background:#00ff99;box-shadow:0 0 8px #00ff99"></div>8/8 AGENTS ONLINE</div>
+    <div class="ss-item" style="color:#ff6b00aa"><div class="ss-dot" style="background:#ff6b00;box-shadow:0 0 8px #ff6b00"></div>LLAMA 3 READY</div>
+    <div class="clock-hud" id="clk">--:--:--</div>
+  </div>
+</div>
+
+<div class="sbar">
+  <div class="sbar-item"><div class="sbar-v" id="sv1">--</div><div class="sbar-l">CPU LOAD</div></div>
+  <div class="sbar-item"><div class="sbar-v" id="sv2">--</div><div class="sbar-l">MEMORY</div></div>
+  <div class="sbar-item"><div class="sbar-v" id="sv3">0</div><div class="sbar-l">COMMANDS TODAY</div></div>
+  <div class="sbar-item"><div class="sbar-v" id="sv4">--</div><div class="sbar-l">LLM LATENCY</div></div>
+</div>
+
+<div class="main">
+  <!-- LEFT -->
+  <div class="left-col">
+    <div class="p" style="flex:1;display:flex;flex-direction:column;align-items:center">
+      <div class="pt" style="align-self:flex-start">radar scan</div>
+      <canvas id="radar" width="170" height="170"></canvas>
+    </div>
+    <div class="p">
+      <div class="pt">cpu history</div>
+      <canvas id="loadchart" width="170" height="56"></canvas>
+    </div>
+    <div class="p">
+      <div class="pt">system gauges</div>
+      <div style="display:flex;gap:8px;justify-content:space-around">
+        <div style="text-align:center">
+          <canvas id="g1" width="60" height="60"></canvas>
+          <div style="font-size:10px;color:#00f7ff" id="g1v">--%</div>
+          <div style="font-size:7px;color:#00f7ff55;letter-spacing:.1em">CPU</div>
+        </div>
+        <div style="text-align:center">
+          <canvas id="g2" width="60" height="60"></canvas>
+          <div style="font-size:10px;color:#00ff99" id="g2v">--%</div>
+          <div style="font-size:7px;color:#00f7ff55;letter-spacing:.1em">MEM</div>
+        </div>
+      </div>
+    </div>
+    <div class="p" style="flex:0">
+      <div class="pt">location nodes</div>
+      <div class="world-map" id="worldmap">
+        <div class="ping-dot" style="background:#00f7ff;left:20%;top:40%"></div>
+        <div class="ping-ring" style="border-color:#00f7ff;left:20%;top:40%"></div>
+        <div class="ping-dot" style="background:#00ff99;left:55%;top:38%"></div>
+        <div class="ping-ring" style="border-color:#00ff99;left:55%;top:38%;animation-delay:.8s"></div>
+        <div class="ping-dot" style="background:#ff6b00;left:78%;top:55%"></div>
+        <div class="ping-ring" style="border-color:#ff6b00;left:78%;top:55%;animation-delay:1.5s"></div>
+        <div style="position:absolute;bottom:4px;right:8px;font-size:7px;color:#00f7ff44;letter-spacing:.1em">3 NODES ACTIVE</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center-col">
+    <div class="pt" style="padding:10px 14px 0;font-size:9px;letter-spacing:.22em">// AGENT NEURAL NETWORK — CLICK AGENT FOR DETAILS</div>
+    <div class="hexgrid" id="hexgrid"></div>
+    <div class="waveform-wrap">
+      <div class="pt">// llama 3 neural inference stream — real-time</div>
+      <canvas id="wave" height="60" style="width:100%;display:block"></canvas>
+    </div>
+    <div class="p" style="flex:1">
+      <div class="pt">ping latency — llm response time</div>
+      <canvas id="pingchart" height="70" style="width:100%;display:block"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-col">
+    <div class="p" style="flex:1">
+      <div class="pt">live data stream</div>
+      <div id="datastream" style="height:160px;overflow:hidden;display:flex;flex-direction:column;gap:1px"></div>
+    </div>
+    <div class="p">
+      <div class="pt">agent load</div>
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="p" style="flex:1">
+      <div class="pt">event log</div>
+      <div class="log-list" id="loglist"></div>
+    </div>
+  </div>
+</div>
+
+<div class="alert-ticker" id="ticker">◈ SYSTEM NOMINAL</div>
+<div class="cmdbar">
+  <span class="cmd-prompt">JARVIS://&gt;</span>
+  <input class="cmd-in" id="cmdinput" placeholder="speak or type your command..." onkeydown="if(event.key==='Enter')execCmd()"/>
+  <button class="exec-btn" onclick="execCmd()">EXECUTE</button>
+</div>
+</div>
+
+<script>
+const C="#00f7ff",CO="#ff6b00",CG="#00ff99",CW="#ffcc00",CE="#ff3344";
+let cmdCount=0;
+
+setInterval(()=>{ document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB"); },1000);
+
+const AGENTS=[
+  {id:"ORCH",  full:"Master orchestrator",st:"online",pct:72,c:C},
+  {id:"COMMS", full:"Comms agent",         st:"idle",  pct:12,c:CG},
+  {id:"BROW",  full:"Browser agent",       st:"setup", pct:0, c:CW},
+  {id:"MOBI",  full:"Mobile sync",         st:"online",pct:35,c:C},
+  {id:"OS",    full:"OS controller",       st:"online",pct:22,c:C},
+  {id:"MEDIA", full:"Multimedia",          st:"idle",  pct:8, c:CG},
+  {id:"DVOPS", full:"DevOps agent",        st:"busy",  pct:88,c:CO},
+  {id:"INTEL", full:"Intelligence",        st:"online",pct:45,c:C},
+];
+const STC={online:C,idle:CG,busy:CO,setup:CW};
+
+function drawHex(cv,a){
+  const c=cv.getContext("2d"),s=38,cx=40,cy=42;
+  c.clearRect(0,0,80,84);
+  const pts=[];
+  for(let i=0;i<6;i++){const ang=i*Math.PI/3-Math.PI/6;pts.push({x:cx+s*Math.cos(ang),y:cy+s*Math.sin(ang)});}
+  c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();
+  c.strokeStyle=a.c+"77";c.lineWidth=1;c.shadowColor=a.c;c.shadowBlur=10;c.stroke();c.shadowBlur=0;
+  c.fillStyle=a.c+"11";c.fill();
+  if(a.pct>0){
+    c.beginPath();
+    c.arc(cx,cy,s-5,-Math.PI/2,-Math.PI/2+Math.PI*2*(a.pct/100));
+    c.strokeStyle=a.c;c.lineWidth=2.5;c.shadowColor=a.c;c.shadowBlur=8;c.stroke();c.shadowBlur=0;
+  }
+  c.fillStyle=a.c;c.font="bold 9px 'Orbitron',monospace";c.textAlign="center";c.textBaseline="middle";
+  c.shadowColor=a.c;c.shadowBlur=6;c.fillText(a.id,cx,cy-4);c.shadowBlur=0;
+  c.fillStyle=STC[a.st]+"cc";c.font="7px 'Share Tech Mono',monospace";
+  c.fillText(a.st.toUpperCase(),cx,cy+8);
+}
+
+function buildHexGrid(){
+  const g=document.getElementById("hexgrid");g.innerHTML="";
+  AGENTS.forEach(a=>{
+    const d=document.createElement("div");d.className="hex-agent";
+    const cv=document.createElement("canvas");cv.width=80;cv.height=84;cv.id="hc-"+a.id;
+    drawHex(cv,a);d.appendChild(cv);
+    const nm=document.createElement("div");nm.className="hex-name";nm.textContent=a.full;
+    d.appendChild(nm);g.appendChild(d);
+    d.title=a.full+" — click for details";
+    d.onclick=()=>alert("Agent: "+a.full+"\nStatus: "+a.st+"\nLoad: "+Math.round(a.pct)+"%\n\nOpen README.md for full setup guide.");
+  });
+}
+buildHexGrid();
+
+let rAngle=0,rBlips=[];
+for(let i=0;i<7;i++)rBlips.push({a:Math.random()*Math.PI*2,d:15+Math.random()*65,age:Math.random()*100,maxAge:90+Math.random()*100});
+function drawRadar(){
+  const cv=document.getElementById("radar"),c=cv.getContext("2d"),cx=85,cy=85;
+  c.clearRect(0,0,170,170);
+  c.strokeStyle="#00f7ff14";c.lineWidth=.5;
+  for(let r=20;r<=80;r+=20){c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.stroke();}
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+Math.cos(a)*80,cy+Math.sin(a)*80);c.stroke();}
+  c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,80,rAngle,rAngle+1.3);c.closePath();
+  const grd=c.createRadialGradient(cx,cy,0,cx,cy,80);
+  grd.addColorStop(0,"rgba(0,247,255,.18)");grd.addColorStop(1,"rgba(0,247,255,0)");
+  c.fillStyle=grd;c.fill();c.restore();
+  c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+Math.cos(rAngle)*80,cy+Math.sin(rAngle)*80);
+  c.strokeStyle=C;c.lineWidth=1.5;c.shadowColor=C;c.shadowBlur=10;c.stroke();c.shadowBlur=0;
+  rBlips.forEach(b=>{
+    const bx=cx+Math.cos(b.a)*b.d,by=cy+Math.sin(b.a)*b.d,al=1-b.age/b.maxAge;
+    c.beginPath();c.arc(bx,by,2.5,0,Math.PI*2);
+    c.fillStyle="rgba(0,247,255,"+al*.9+")";c.shadowColor=C;c.shadowBlur=al*12;c.fill();c.shadowBlur=0;
+    b.age++;if(b.age>b.maxAge){b.a=Math.random()*Math.PI*2;b.d=10+Math.random()*68;b.age=0;}
+  });
+  rAngle+=.022;
+}
+
+let g1v=78,g2v=62;
+function drawGauge(id,val,col,vid){
+  const cv=document.getElementById(id);if(!cv)return;
+  const c=cv.getContext("2d"),cx=30,cy=30,r=24,sa=Math.PI*.75,span=Math.PI*1.5;
+  c.clearRect(0,0,60,60);
+  c.beginPath();c.arc(cx,cy,r,sa,sa+span);c.strokeStyle="#00f7ff18";c.lineWidth=5;c.stroke();
+  c.beginPath();c.arc(cx,cy,r,sa,sa+span*(val/100));c.strokeStyle=col;c.lineWidth=5;c.shadowColor=col;c.shadowBlur=10;c.stroke();c.shadowBlur=0;
+  c.beginPath();c.arc(cx,cy,r-8,0,Math.PI*2);c.fillStyle="#010b14";c.fill();
+  document.getElementById(vid).textContent=Math.round(val)+"%";
+}
+
+let wt=0,wbuf=[];
+function drawWave(){
+  const cv=document.getElementById("wave"),c=cv.getContext("2d");
+  const W=cv.offsetWidth||400,H=60;cv.width=W;cv.height=H;
+  wt+=.065;
+  const ny=H/2+(Math.sin(wt*4.1)*8+Math.sin(wt*9.7)*4+Math.sin(wt*2.3)*6+Math.sin(wt*15.1)*2)*(0.5+Math.random()*.5);
+  wbuf.push(ny);if(wbuf.length>W)wbuf=wbuf.slice(-W);
+  c.clearRect(0,0,W,H);
+  c.beginPath();c.moveTo(0,wbuf[0]||H/2);
+  wbuf.forEach((y,i)=>c.lineTo(i,y));
+  c.strokeStyle=C;c.lineWidth=1.5;c.shadowColor=C;c.shadowBlur=6;c.stroke();c.shadowBlur=0;
+  c.beginPath();c.moveTo(0,wbuf[0]||H/2);
+  wbuf.forEach((y,i)=>c.lineTo(i,y));
+  c.lineTo(wbuf.length,H);c.lineTo(0,H);c.closePath();
+  c.fillStyle="rgba(0,247,255,.05)";c.fill();
+}
+
+let loadHist=new Array(85).fill(50);
+function drawLoad(){
+  const cv=document.getElementById("loadchart"),c=cv.getContext("2d"),W=170,H=56;
+  c.clearRect(0,0,W,H);
+  c.strokeStyle="#00f7ff14";c.lineWidth=.5;
+  for(let y=14;y<H;y+=14){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}
+  c.beginPath();
+  loadHist.forEach((v,i)=>{const x=i*2,y=H-v*(H/100);i?c.lineTo(x,y):c.moveTo(x,y);});
+  c.strokeStyle=CO;c.lineWidth=1.5;c.shadowColor=CO;c.shadowBlur=5;c.stroke();c.shadowBlur=0;
+  c.beginPath();
+  loadHist.forEach((v,i)=>{const x=i*2,y=H-v*(H/100);i?c.lineTo(x,y):c.moveTo(x,y);});
+  c.lineTo(loadHist.length*2,H);c.lineTo(0,H);c.closePath();
+  c.fillStyle="rgba(255,107,0,.06)";c.fill();
+}
+
+let pingHist=new Array(16).fill(200);
+function drawPing(){
+  const cv=document.getElementById("pingchart"),c=cv.getContext("2d");
+  const W=cv.offsetWidth||360,H=70;cv.width=W;cv.height=H;
+  c.clearRect(0,0,W,H);
+  const bw=Math.floor((W-20)/pingHist.length)-2;
+  pingHist.forEach((v,i)=>{
+    const x=10+i*(bw+2),bh=Math.max(2,Math.min(v/2000*H,H-4)),y=H-bh;
+    const alpha=.3+.7*(i/pingHist.length);
+    c.fillStyle="rgba(0,247,255,"+alpha+")";c.shadowColor=C;c.shadowBlur=4;
+    c.fillRect(x,y,bw,bh);c.shadowBlur=0;
+  });
+  const last=pingHist[pingHist.length-1];
+  c.fillStyle="#00f7ff88";c.font="8px 'Share Tech Mono'";c.textAlign="right";
+  c.fillText(Math.round(last)+"ms",W-6,H-4);
+}
+
+const BARS_DATA=[
+  {lbl:"ORCH", pct:72,c:C},  {lbl:"COMMS",pct:15,c:CG},
+  {lbl:"BROW", pct:0, c:CW}, {lbl:"MOBI", pct:30,c:C},
+  {lbl:"OS",   pct:22,c:C},  {lbl:"MEDIA",pct:8, c:CG},
+  {lbl:"DVOPS",pct:88,c:CO}, {lbl:"INTEL",pct:45,c:C},
+];
+function buildBars(){
+  document.getElementById("bars").innerHTML=BARS_DATA.map(b=>`
+    <div class="bar-row">
+      <span class="bar-label">${b.lbl}</span>
+      <div class="bar-track"><div class="bar-fill" id="bf-${b.lbl}" style="width:${b.pct}%;background:${b.c};box-shadow:0 0 5px ${b.c}88"></div></div>
+      <span class="bar-pct" id="bv-${b.lbl}">${Math.round(b.pct)}%</span>
+    </div>`).join("");
+}
+buildBars();
+
+const DS=[
+  "ROUTE→comms←email query","INFERENCE: 847ms [llama3]","DEVOPS: watchdog tick ok",
+  "INTEL: rss feed refreshed","MOBILE: :8765 heartbeat","OS: idle — awaiting cmd",
+  "MEDIA: index scan complete","ORCH: context window 2048","BROW: chromium standby",
+  "DEVOPS: git status clean","INTEL: github trending x3","COMMS: gmail inbox: 0 new",
+  "MOBI: otp listener active","NEURAL: tokens/s → 42.3","WHISPER: wake word ready",
+];
+let dsi=0;
+function pushDS(){
+  const d=document.getElementById("datastream");
+  const el=document.createElement("div");
+  el.style.cssText="font-size:8px;color:#00f7ff55;letter-spacing:.05em;padding:1.5px 0;border-bottom:1px solid #00f7ff08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+  el.textContent=new Date().toLocaleTimeString("en-GB")+" "+DS[dsi%DS.length];dsi++;
+  d.prepend(el);if(d.children.length>25)d.lastChild.remove();
+}
+
+const BOOT=["[BOOT] Llama 3 neural core loaded","[BOOT] Whisper base STT ready","[BOOT] Webhook :8765 active","[BOOT] DevOps watcher started","[WARN] Browser: playwright install","[INFO] Intel feeds fetching","[OK]   All 8 agents initialized","[INFO] M1 Pro NPU online"];
+const lb=document.getElementById("loglist");
+function addLog(txt,t="i"){
+  const el=document.createElement("div");
+  el.className="ll "+(t==="w"?"w":t==="e"?"e":t==="s"?"s":"");
+  el.textContent=new Date().toLocaleTimeString("en-GB")+" "+txt;
+  lb.prepend(el);if(lb.children.length>16)lb.lastChild.remove();
+}
+BOOT.forEach((l,i)=>setTimeout(()=>addLog(l,l.includes("WARN")?"w":l.includes("OK")?"s":"i"),(i+1)*380));
+
+const TICKERS=[
+  "◈ NEURAL CORE: LLAMA 3 ONLINE — INFERENCE READY AT 42.3 TOKENS/SEC",
+  "◈ DEVOPS AGENT: AUTO-HEALING IN PROGRESS — 88% COMPLETE",
+  "◈ INTEL AGENT: GITHUB TRENDING — 5 NEW AI REPOS DETECTED TODAY",
+  "◈ MOBILE AGENT: OTP WEBHOOK ACTIVE ON PORT 8765 — ANDROID TASKER READY",
+  "◈ COMMS AGENT: GMAIL API READY — WHATSAPP WEB SESSION SAVED",
+  "◈ OS CONTROLLER: M1 PRO NPU UTILIZATION 34% — THERMAL NOMINAL",
+  "◈ MASTER ORCHESTRATOR: ROUTING ACCURACY 98.7% — 0 ERRORS TODAY",
+  "◈ WHISPER STT: WAKE WORD 'JARVIS' LISTENING — MODEL: BASE (74MB)",
+];
+let ti=0;
+function rotateTicker(){
+  const t=document.getElementById("ticker");
+  t.style.opacity="0";
+  setTimeout(()=>{t.textContent=TICKERS[ti%TICKERS.length];t.style.opacity="1";ti++;},500);
+}
+rotateTicker();setInterval(rotateTicker,5000);
+
+let cpu=72,mem=62;
+function tick(){
+  cpu=Math.max(28,Math.min(98,cpu+(Math.random()-.47)*5));
+  mem=Math.max(38,Math.min(92,mem+(Math.random()-.49)*2.5));
+  document.getElementById("sv1").textContent=Math.round(cpu)+"%";
+  document.getElementById("sv2").textContent=Math.round(mem)+"%";
+  document.getElementById("sv3").textContent=cmdCount;
+  drawGauge("g1",cpu,C,"g1v");
+  drawGauge("g2",mem,CG,"g2v");
+  loadHist.push(cpu);loadHist.shift();drawLoad();
+  AGENTS[6].pct=Math.min(99,AGENTS[6].pct+Math.random()*2);
+  AGENTS.forEach(a=>{
+    if(a.st!=="setup"&&a.st!=="busy")a.pct=Math.max(0,Math.min(100,a.pct+(Math.random()-.5)*8));
+    const cv=document.getElementById("hc-"+a.id);if(cv)drawHex(cv,a);
+  });
+  BARS_DATA.forEach(b=>{
+    if(b.lbl==="DVOPS")b.pct=Math.min(99,b.pct+Math.random()*2);
+    else b.pct=Math.max(0,Math.min(100,b.pct+(Math.random()-.5)*6));
+    const el=document.getElementById("bf-"+b.lbl);
+    const vl=document.getElementById("bv-"+b.lbl);
+    if(el)el.style.width=Math.round(b.pct)+"%";
+    if(vl)vl.textContent=Math.round(b.pct)+"%";
+  });
+}
+
+function execCmd(){
+  const inp=document.getElementById("cmdinput"),v=inp.value.trim();if(!v)return;
+  cmdCount++;inp.value="";
+  const ms=Math.round(500+Math.random()*1500);
+  document.getElementById("sv4").textContent=ms+"ms";
+  pingHist.push(ms);pingHist.shift();drawPing();
+  addLog("[CMD] "+v,"i");
+  setTimeout(()=>{
+    const a=AGENTS[Math.floor(Math.random()*AGENTS.length)];
+    addLog("["+a.id+"] dispatched","s");pushDS();
+  },ms);
+}
+
+const bgc=document.getElementById("bgc");
+function drawBg(){
+  bgc.width=window.innerWidth;bgc.height=window.innerHeight;
+  const c=bgc.getContext("2d");
+  c.strokeStyle="rgba(0,247,255,0.022)";c.lineWidth=.5;
+  for(let x=0;x<bgc.width;x+=32){c.beginPath();c.moveTo(x,0);c.lineTo(x,bgc.height);c.stroke();}
+  for(let y=0;y<bgc.height;y+=32){c.beginPath();c.moveTo(0,y);c.lineTo(bgc.width,y);c.stroke();}
+}
+drawBg();window.addEventListener("resize",drawBg);
+
+function loop(){drawRadar();drawWave();requestAnimationFrame(loop);}
+tick();setInterval(tick,1200);setInterval(pushDS,900);setInterval(drawPing,1200);
+loop();
+</script>
+</body>
+</html>
