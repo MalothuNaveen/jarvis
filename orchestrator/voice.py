@@ -62,11 +62,11 @@ def _record_audio(max_seconds: int = RECORD_SECONDS) -> np.ndarray:
 
 
 def _audio_to_text(audio: np.ndarray) -> str:
-    """Transcribe numpy float32 audio → text via local Whisper."""
+    """Transcribe/translate numpy float32 audio → English text via local Whisper."""
     model  = _get_model()
     result = model.transcribe(
         audio,
-        language=WHISPER_LANGUAGE,
+        task="translate",
         fp16=False          # M1 MPS doesn't need fp16 here
     )
     return result["text"].strip()
@@ -112,7 +112,10 @@ def listen_for_wake_word(callback) -> None:
                 console.print(f"[dim]Heard: '{preview}'[/dim]")
 
             # Check for wake word and phonetic variations
-            wake_words = [WAKE_WORD.lower(), "javis", "jarves", "jarv", "garvis", "charvis"]
+            wake_words = [
+                WAKE_WORD.lower(), "javis", "jarves", "jarv", "garvis", "charvis",
+                "davis", "darwis", "gervis", "darvis", "service", "travis", "jarbis", "jervis", "javius"
+            ]
             if any(w in preview for w in wake_words):
                 console.print(f"[bold cyan]⚡ Wake word detected![/bold cyan]")
                 
