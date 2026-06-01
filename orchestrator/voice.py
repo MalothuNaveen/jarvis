@@ -108,17 +108,31 @@ def listen_for_wake_word(callback) -> None:
                 continue
 
             preview = _audio_to_text(audio).lower()
+            if preview:
+                console.print(f"[dim]Heard: '{preview}'[/dim]")
 
-            if WAKE_WORD.lower() in preview:
+            # Check for wake word and phonetic variations
+            wake_words = [WAKE_WORD.lower(), "javis", "jarves", "jarv", "garvis", "charvis"]
+            if any(w in preview for w in wake_words):
                 console.print(f"[bold cyan]⚡ Wake word detected![/bold cyan]")
+                
+                # Play audio feedback (short modern tick sound)
+                import subprocess
+                subprocess.run(["afplay", "/System/Library/Sounds/Tink.aiff"])
+                
                 # Now record the actual command (up to RECORD_SECONDS)
                 cmd_audio = _record_audio(max_seconds=RECORD_SECONDS)
                 command   = _audio_to_text(cmd_audio)
-                # Strip the wake word itself from the command
-                command = command.lower().replace(WAKE_WORD.lower(), "").strip()
-                if command:
-                    console.print(f"[bold white]📝 Command: '{command}'[/bold white]")
-                    callback(command)
+                
+                # Strip the wake words from the command
+                command_clean = command.lower()
+                for w in wake_words:
+                    command_clean = command_clean.replace(w, "")
+                command_clean = command_clean.strip()
+                
+                if command_clean:
+                    console.print(f"[bold white]📝 Command: '{command_clean}'[/bold white]")
+                    callback(command_clean)
             else:
                 time.sleep(0.1)
 

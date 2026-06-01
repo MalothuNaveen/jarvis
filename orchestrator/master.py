@@ -149,4 +149,4 @@ async def dispatch(command: str) -> str:
 
 # ── Sync wrapper (for non-async callers) ────────────────────
 def handle_command(command: str) -> str:
-    return asyncio.get_event_loop().run_until_complete(dispatch(command))
+    return asyncio.run(dispatch(command))

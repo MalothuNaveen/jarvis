@@ -78,7 +78,7 @@ def run_voice_mode():
     speak(f"JARVIS online. Say {WAKE_WORD} followed by your command.")
 
     def on_command(cmd: str):
-        asyncio.get_event_loop().run_until_complete(dispatch(cmd))
+        asyncio.run(dispatch(cmd))
 
     listen_for_wake_word(on_command)
 
@@ -99,7 +99,7 @@ def run_text_mode():
             if cmd.lower() in ("exit", "quit", "bye"):
                 speak("Goodbye Boss.")
                 break
-            asyncio.get_event_loop().run_until_complete(dispatch(cmd))
+            asyncio.run(dispatch(cmd))
         except (KeyboardInterrupt, EOFError):
             speak("Goodbye Boss.")
             break
@@ -111,7 +111,7 @@ def run_once_mode():
     speak("Ready. Speak your command.")
     cmd = listen_once()
     if cmd:
-        asyncio.get_event_loop().run_until_complete(dispatch(cmd))
+        asyncio.run(dispatch(cmd))
 
 
 # ── Entry point ───────────────────────────────────────────────
