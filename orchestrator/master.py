@@ -27,10 +27,16 @@ You are JARVIS, a personal AI assistant running 100% locally on a Mac M1 Pro.
 You receive a voice command from the user and must decide which agent to route it to.
 
 Available agents and their responsibilities:
-- comms        : Gmail reading/sending, WhatsApp messaging, drafting replies
+- comms        : Gmail reading/sending, WhatsApp messaging, drafting replies, Microsoft Teams
+                 Expected params inside "params" (extract from input):
+                 * For emails (Gmail/Outlook): {"to": "<email address>", "subject": "<subject string>", "body": "<body text>"}
+                 * For WhatsApp: {"contact": "<contact name>", "message": "<message text>"}
+                 * For Teams: {"contact": "<contact name>", "message": "<message>"}
 - browser      : Open URLs, fill forms, web login, download files from websites
+                 Expected params inside "params": {"url": "<url to open>"}
 - mobile       : OTP capture, phone call/SMS alerts, mobile sync
 - os_ctrl      : Open/close apps, manage files, take screenshots, system volume, terminal commands
+                 Expected params inside "params": {"app": "<app name>", "action": "<action>", "volume": <number>}
 - multimedia   : Photo/video search, image editing, gallery management
 - devops       : Fix code bugs, run git commands, watch VS Code errors, GitHub pipelines
 - intelligence : News, trending topics, weather, GitHub trending, tech updates
@@ -45,6 +51,7 @@ Respond ONLY with a valid JSON object — no prose, no markdown fences:
 If the command needs multiple agents, pick the PRIMARY one only.
 If unclear, route to "os_ctrl" as default.
 """
+
 
 
 # ── Agent registry (populated by main.py) ───────────────────
@@ -86,6 +93,29 @@ def route_command(command: str) -> dict:
     except Exception as e:
         console.print(f"[red]Ollama error: {e}[/red]")
         return {"agent": "os_ctrl", "intent": command, "params": {}}
+
+
+# ── Translation helper ──────────────────────────────────────
+def translate_to_telugu(text: str) -> str:
+    """Translate English response to natural spoken Telugu using Llama 3."""
+    try:
+        prompt = (
+            f"Translate the following English phrase into friendly, natural spoken Telugu script. "
+            f"Example: \"Volume set to 30%, Boss.\" -> \"బాస్, వాల్యూమ్ ముప్పై శాతానికి సెట్ చేయబడింది.\" "
+            f"Example: \"Opening Chromium now.\" -> \"నేను ఇప్పుడు బ్రౌజర్ ఓపెన్ చేస్తున్నాను, బాస్.\" "
+            f"Example: \"Gmail API is ready.\" -> \"జిమెయిల్ సిద్ధంగా ఉంది, బాస్.\" "
+            f"Translate: \"{text}\" "
+            f"Respond ONLY with the Telugu translation."
+        )
+        response = _ollama.generate(
+            model=OLLAMA_MODEL,
+            prompt=prompt,
+            options={"temperature": 0.1}
+        )
+        return response["response"].strip()
+    except Exception as e:
+        console.print(f"[red]Translation to Telugu failed: {e}[/red]")
+        return text
 
 
 # ── TTS (macOS built-in, zero cost) ─────────────────────────
@@ -137,12 +167,21 @@ async def dispatch(command: str) -> str:
             console.print(f"[red]{response}[/red]")
 
     # 3. Speak + print response
-    console.print(Panel(
-        f"[green]{response}[/green]",
-        title="[white]🤖 JARVIS[/white]",
-        border_style="green"
-    ))
-    speak(response)
+    if TTS_VOICE == "Geeta":
+        response_spoken = translate_to_telugu(response)
+        console.print(Panel(
+            f"[green]{response_spoken}[/green]\n[dim]({response})[/dim]",
+            title="[white]🤖 JARVIS[/white]",
+            border_style="green"
+        ))
+        speak(response_spoken)
+    else:
+        console.print(Panel(
+            f"[green]{response}[/green]",
+            title="[white]🤖 JARVIS[/white]",
+            border_style="green"
+        ))
+        speak(response)
 
     return response
 
