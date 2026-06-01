@@ -358,9 +358,27 @@ function rotateTicker(){
 rotateTicker();setInterval(rotateTicker,5000);
 
 let cpu=72,mem=62;
-function tick(){
-  cpu=Math.max(28,Math.min(98,cpu+(Math.random()-.47)*5));
-  mem=Math.max(38,Math.min(92,mem+(Math.random()-.49)*2.5));
+async function tick(){
+  try {
+    const res = await fetch("http://localhost:8765/status");
+    const data = await res.json();
+    if (data.status === "success") {
+      cpu = data.cpu;
+      mem = data.memory;
+      cmdCount = data.command_count;
+      if (data.llm_latency > 0) {
+        document.getElementById("sv4").textContent = data.llm_latency + "ms";
+        pingHist.push(data.llm_latency);
+        pingHist.shift();
+        drawPing();
+      }
+    }
+  } catch (err) {
+    // Subtle fallback drift
+    cpu = Math.max(10, Math.min(99, cpu + (Math.random() - 0.5) * 5));
+    mem = Math.max(10, Math.min(99, mem + (Math.random() - 0.5) * 2));
+  }
+
   document.getElementById("sv1").textContent=Math.round(cpu)+"%";
   document.getElementById("sv2").textContent=Math.round(mem)+"%";
   document.getElementById("sv3").textContent=cmdCount;
@@ -382,17 +400,30 @@ function tick(){
   });
 }
 
-function execCmd(){
+async function execCmd(){
   const inp=document.getElementById("cmdinput"),v=inp.value.trim();if(!v)return;
-  cmdCount++;inp.value="";
-  const ms=Math.round(500+Math.random()*1500);
-  document.getElementById("sv4").textContent=ms+"ms";
-  pingHist.push(ms);pingHist.shift();drawPing();
+  inp.value="";
   addLog("[CMD] "+v,"i");
-  setTimeout(()=>{
-    const a=AGENTS[Math.floor(Math.random()*AGENTS.length)];
-    addLog("["+a.id+"] dispatched","s");pushDS();
-  },ms);
+  const t0 = Date.now();
+  try {
+    const res = await fetch("http://localhost:8765/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "command", value: v })
+    });
+    const data = await res.json();
+    const ms = Date.now() - t0;
+    document.getElementById("sv4").textContent = ms+"ms";
+    pingHist.push(ms);pingHist.shift();drawPing();
+    if(data.status === "success") {
+      addLog("[JARVIS] " + data.response, "s");
+      pushDS();
+    } else {
+      addLog("[ERR] Execution failed", "e");
+    }
+  } catch (err) {
+    addLog("[ERR] Server offline", "e");
+  }
 }
 
 const bgc=document.getElementById("bgc");

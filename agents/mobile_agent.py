@@ -15,26 +15,58 @@ console = Console()
 _latest_otp:  str = ""
 _latest_sms:  str = ""
 _latest_call: str = ""
+_command_count: int = 0
+_last_latency: int = 0
 
+def record_command_execution(latency_ms: int):
+    global _command_count, _last_latency
+    _command_count += 1
+    _last_latency = latency_ms
 
 # ── Lightweight webhook server (runs in background thread) ───
 class _WebhookHandler(BaseHTTPRequestHandler):
     """
-    Android Tasker sends HTTP POST to http://<mac-ip>:8765/event
-    Body format (JSON):
-      {"type": "otp",  "value": "123456"}
-      {"type": "sms",  "value": "Your package is out for delivery"}
-      {"type": "call", "value": "Missed call from +91-9876543210"}
+    Handles Android Tasker webhooks and Jarvis HUD UI control commands & status checking.
     """
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
     def do_POST(self):
         import json
         global _latest_otp, _latest_sms, _latest_call
         try:
             length = int(self.headers.get("Content-Length", 0))
+            if length == 0:
+                self.send_response(400)
+                self.end_headers()
+                return
+
             data   = json.loads(self.rfile.read(length))
             etype  = data.get("type", "")
             value  = data.get("value", "")
+
+            # CORS headers helper
+            def send_json_response(status_code, response_dict):
+                self.send_response(status_code)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(response_dict).encode())
+
+            if etype == "command":
+                from orchestrator.master import handle_command
+                import time
+                t0 = time.time()
+                response_text = handle_command(value)
+                latency = int((time.time() - t0) * 1000)
+                record_command_execution(latency)
+                send_json_response(200, {"status": "success", "response": response_text})
+                return
 
             if etype == "otp":
                 _latest_otp = value
@@ -47,11 +79,44 @@ class _WebhookHandler(BaseHTTPRequestHandler):
                 console.print(f"[magenta]📞 Call alert: {value}[/magenta]")
 
             self.send_response(200)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(b"OK")
         except Exception as e:
             console.print(f"[red]Webhook error: {e}[/red]")
             self.send_response(500)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+
+    def do_GET(self):
+        import json
+        import psutil
+        if self.path == "/status":
+            try:
+                cpu_pct = psutil.cpu_percent()
+                mem_pct = psutil.virtual_memory().percent
+                
+                self.send_response(200)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                
+                status_data = {
+                    "status": "success",
+                    "cpu": cpu_pct,
+                    "memory": mem_pct,
+                    "command_count": _command_count,
+                    "llm_latency": _last_latency
+                }
+                self.wfile.write(json.dumps(status_data).encode())
+            except Exception as e:
+                console.print(f"[red]Status get error: {e}[/red]")
+                self.send_response(500)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
 
     def log_message(self, *args):
